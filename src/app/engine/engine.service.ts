@@ -1,8 +1,11 @@
 import * as THREE from 'three';
-import {ElementRef, Injectable, NgZone, OnDestroy} from '@angular/core';
+import { ElementRef, HostListener, Injectable, NgZone, OnDestroy } from '@angular/core';
+import { ThisReceiver } from '@angular/compiler';
+import { SphereGeometry } from 'three';
 
-@Injectable({providedIn: 'root'})
+@Injectable({ providedIn: 'root' })
 export class EngineService implements OnDestroy {
+
   private canvas: HTMLCanvasElement;
   private renderer: THREE.WebGLRenderer;
   private camera: THREE.PerspectiveCamera;
@@ -10,9 +13,22 @@ export class EngineService implements OnDestroy {
   private light: THREE.AmbientLight;
 
   private cube: THREE.Mesh;
+  private rect: THREE.Mesh;
+  private circle: THREE.Mesh;
+
+  private sphere = new THREE.SphereGeometry(0.5,100,100);
+  private sunMaterial =  new THREE.MeshPhongMaterial({emissive: 0xFFFF00})
+  private sunMesh = new THREE.Mesh(this.sphere,this.sunMaterial)
+
+  cameraHorzLimit = 50;
+  cameraVertLimit = 50;
+
+  mouse = new THREE.Vector2();
+  cameraCenter = new THREE.Vector3();
+  wheel = 10;
 
   private frameId: number = null;
-
+w
   public constructor(private ngZone: NgZone) {
   }
 
@@ -48,15 +64,40 @@ export class EngineService implements OnDestroy {
     this.scene.add(this.camera);
 
     // soft white light
-    this.light = new THREE.AmbientLight(0x404040);
-    this.light.position.z = 10;
+    this.light = new THREE.AmbientLight(0xafafaf);
+    this.light.position.z = 30;
     this.scene.add(this.light);
 
-    const geometry = new THREE.BoxGeometry(1, 1, 1);
-    const material = new THREE.MeshBasicMaterial({color: 0x00ff00});
-    this.cube = new THREE.Mesh(geometry, material);
+    this.cube = this.createBox(0x00A7D1, 1, 1, 1);
     this.scene.add(this.cube);
+    this.rect = this.createBox(0x97DBEC, 1, 2, 2);
+    this.scene.add(this.rect);
+    this.circle = this.createCircle(0x11ddaa)
+    this.circle.position.y = 5;
+    this.scene.add(this.circle)
+    let cube = this.createBox(0x111dd1,4,2,100)
+    cube.position.y = -5;
+    this.scene.add(cube);
+    this.sunMesh.scale.set(5,5,5)
+    this.scene.add(this.sunMesh)
+    let earth=new THREE.Mesh(this.sphere,new THREE.MeshPhongMaterial({color:0x2233FF,emissive:0x112244}));
+    this.scene.add(earth)
+    this.sunMesh.add(earth)
+    this.scene.add(new THREE.PointLight(0xFFFFFF,3))
 
+    
+  }
+
+  createBox(color: any, x: number, y: number, z: number) {
+    const geometry = new THREE.BoxGeometry(x, y, z);
+    const material = new THREE.MeshBasicMaterial({ color });
+    return new THREE.Mesh(geometry, material);
+  }
+
+  createCircle(color: any) {
+    const geometry = new THREE.CircleGeometry(1.5, 40,);
+    const material = new THREE.MeshBasicMaterial({ color });
+    return new THREE.Mesh(geometry, material);
   }
 
   public animate(): void {
@@ -81,9 +122,18 @@ export class EngineService implements OnDestroy {
     this.frameId = requestAnimationFrame(() => {
       this.render();
     });
+    if(this.cube.position.x<5){
+      this.cube.position.x += 0.01;
+    }
+    else {
+      this.cube.position.x -= 0.01;
+    }
+    
+    // this.cube.rotation.x += 0.04;
+    // this.cube.rotation.y += 0.01;
 
-    this.cube.rotation.x += 0.01;
-    this.cube.rotation.y += 0.01;
+    this.rect.rotation.x += 0.01;
+    this.rect.rotation.y += 0.04;
     this.renderer.render(this.scene, this.camera);
   }
 
@@ -96,4 +146,32 @@ export class EngineService implements OnDestroy {
 
     this.renderer.setSize(width, height);
   }
+
+  updateCamera() {
+    //offset the camera x/y based on the mouse's position in the window
+    this.camera.rotation.x = this.mouse.y//this.cameraCenter.x + (this.cameraHorzLimit * this.mouse.x);
+    this.camera.rotation.y = -this.mouse.x //this.cameraCenter.y + (this.cameraVertLimit * this.mouse.y);
+    this.camera.position.set(0,0,this.wheel)
+    console.log(this.camera.position.x,this.camera.position.y,this.wheel)
+  }
+
+  onDocumentMouseMove(event) {
+    event.preventDefault();
+    this.mouse.x = (event.clientX / window.innerWidth) * 2 - 1;
+    this.mouse.y = -(event.clientY / window.innerHeight) * 2 + 1;
+    this.updateCamera();
+}
+
+onDocumentWheelMove(event){
+  console.log(event)
+  if(event>0){
+    this.wheel += 0.2;
+  } else {
+    this.wheel -= 0.2;
+  }
+  
+
+}
+
+
 }
